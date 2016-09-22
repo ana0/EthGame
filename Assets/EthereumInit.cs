@@ -5,27 +5,28 @@ using UnityEngine.Networking;
 
 public class EthereumInit : MonoBehaviour {
 
+	public Jsonifypre jsonpre = new Jsonifypre ();
+	public Jsonifypost jsonpost = new Jsonifypost ();
+
+	public Params _params = new Params ();
+
+//	public ParamsContructor[] _paramsconst = new ParamsContructor[] {};
+
 	// Use this for initialization
 	void Start () {
-		var _params = new Params[] {};
+//		var _params = new Params[] {};
 
-		var json = new Jsonify();
-		json.jsonrpc = "2.0";
-		json.method = "eth_coinbase";
-		json.@params = _params;
-		json.id = 64;
+//		var json = new Jsonify();
+		jsonpre.jsonrpc = "2.0";
+		jsonpre.method = "eth_sendTransaction";
+//		json.@params = "";
+		jsonpost.id = 1;
 
-		string Jsonified = JsonUtility.ToJson(json);
-
-		var _dejson = new DeJson();
-
-		StartCoroutine(Call(Jsonified, setRect));
-
-//		print (_dejson.text);
 	}
 
 	IEnumerator Test() {
-		string jsonstring = "{\"jsonrpc\":\"2.0\",\"method\":\"eth_coinbase\",\"params\":[],\"id\":64}";
+		//string jsonstring = "{\"jsonrpc\":\"2.0\",\"method\":\"eth_coinbase\",\"params\":[],\"id\":64}";
+		string jsonstring = "{\"jsonrpc\":\"2.0\",\"method\":\"eth_sendTransaction\",\"params\":[{\"from\":\"0xe2Ed3337810Faa653c0E4441279D3f835817F6fD\",\"to\":\"307863363042656241383934353364303941334634416139314132364263353437343034644238336233\",\"gas\":\"0x76c0\",\"gasPrice\":\"0x9184272a000\",\"value\":\"\"}],\"id\":1}";
 		var encoding = new System.Text.UTF8Encoding();
 
 		WWWForm form = new WWWForm();
@@ -40,10 +41,15 @@ public class EthereumInit : MonoBehaviour {
 	}
 
 	[System.Serializable]
-	public struct Jsonify {
+	public struct Jsonifypre {
 		public string jsonrpc;
 		public string method;
-		public Params[] @params;
+//		public string @params;
+//		public int id;
+	}
+
+	[System.Serializable]
+	public struct Jsonifypost {
 		public int id;
 	}
 
@@ -54,33 +60,16 @@ public class EthereumInit : MonoBehaviour {
 		public string gas;
 		public string gasPrice;
 		public string value;
-		public string data;
-		public string nonce;
+//		public string data;
+//		public string nonce;
 	}
 
 	[System.Serializable]
-	public class DeJson {
+	public class deJsonify {
 		public string text;
 	}
 
-//	public class CoroutineWithData {
-//		public Coroutine coroutine { get; private set; }
-//		public object result;
-//		private IEnumerator target;
-//		public CoroutineWithData(MonoBehaviour owner, IEnumerator target) {
-//			this.target = target;
-//			this.coroutine = owner.StartCoroutine(Run());
-//		}
-//
-//		private IEnumerator Run() {
-//			while(target.MoveNext()) {
-//				result = target.Current;
-//				yield return result;
-//			}
-//		}
-//	}
-
-	IEnumerator Call(string jsonstring, Action<string> resultCallback) {
+	public IEnumerator Call(string jsonstring, Action<string> resultCallback) {
 		var encoding = new System.Text.UTF8Encoding();
 
 		WWWForm form = new WWWForm();
@@ -91,26 +80,22 @@ public class EthereumInit : MonoBehaviour {
 
 		WWW www = new WWW ("http://localhost:8080/rpc", data, headers);
 		yield return www;
+
 		string newRect = www.text;
+		print (www.text);
 		resultCallback(newRect);
-
 		yield break;
-		//		resultCallback = www.text;
-		//		yield return result.text;
-
 	}
 		
-
 	public string response;
 
-	public void setRect(string _response){
+	public void setResponse(string _response){
 		response = _response;
 	}
 
-
 	// Update is called once per frame
 	void Update () {
-//		print (response);
+		//print (Jsonified);
 	}
 }
 
