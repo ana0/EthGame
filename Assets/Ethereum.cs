@@ -79,7 +79,7 @@ public class Ethereum : MonoBehaviour {
 //		return apiResponse;
 //	}
 
-	public string personalUnlockAccount(string address, string password, int duration = 300) {
+	public void personalUnlockAccount(string address, string password, int duration = 300) {
 		//assembles args into json rpc call, and starts Call Coroutine
 		//string address represents the account to be unlocked, password is the password of that account
 		//duration is optional, and represents the length of time to keep the account unlocked for
@@ -95,22 +95,44 @@ public class Ethereum : MonoBehaviour {
 		Debug.Log (assembledRequest);
 
 		StartCoroutine(Call(assembledRequest, setResponse));
-
-		return apiResponse;
 	}
 
-	public string ethSendTransaction(string fromAddress, string toAddress, string gas, string gasPrice, string value) {
+//	public string ethSendTransaction(string fromAddress, string toAddress, string gas, string gasPrice, string value) {
+//		//assembles args into json rpc call, and starts Call Coroutine
+//		//string fromAddress represents the account sending the transaction, toAddress is the destination address
+//		//gas is the amount of available gas, gasPrice is the price of gas, and value is the amount to be sent
+//
+//		ArrayList parameters = new ArrayList { fromAddress, toAddress, gas, gasPrice, value };
+//		JsonAssembler jsonAssembler = new JsonAssembler("eth_sendTransaction", parameters, true);
+//		string assembledRequest = jsonAssembler.buildJson();
+//		Debug.Log (assembledRequest);
+//
+//		StartCoroutine(Call(assembledRequest, setResponse));
+//		return apiResponse;
+//	}
+//
+	public void ethSendTransaction(string fromAddress, string toAddress, string gas, string gasPrice, string value) {
 		//assembles args into json rpc call, and starts Call Coroutine
 		//string fromAddress represents the account sending the transaction, toAddress is the destination address
 		//gas is the amount of available gas, gasPrice is the price of gas, and value is the amount to be sent
 
-		ArrayList parameters = new ArrayList { fromAddress, toAddress, gas, gasPrice, value };
-		JsonAssembler jsonAssembler = new JsonAssembler("eth_sendTransaction", parameters, true);
-		string assembledRequest = jsonAssembler.buildJson();
+		Hashtable _parameters = new Hashtable ();
+		_parameters ["from"] = fromAddress;
+		_parameters ["to"] = toAddress;
+		_parameters ["gas"] = gas;
+		_parameters ["gasPrice"] = gasPrice;
+		_parameters ["value"] = value;
+		ArrayList parameters = new ArrayList { _parameters };
+		Hashtable data = new Hashtable ();
+		data ["jsonrpc"] = "2.0"; 
+		data ["method"] = "eth_sendTransaction";
+		data ["params"] = parameters;
+		data ["id"] = 1;
+
+		string assembledRequest = JSON.JsonEncode (data);
 		Debug.Log (assembledRequest);
 
 		StartCoroutine(Call(assembledRequest, setResponse));
-		return apiResponse;
 	}
 }
 

@@ -138,13 +138,13 @@ public class Player1Info : MonoBehaviour {
 			result = (bool)ethereum.parsedJsonResponse ["result"];
 		} 
 		if (result) {
-			//Text message = messageDisplay.GetComponent<Text> ();
 			message.text = "";
 			setPasswordTimer (10.0f);
 			accountIsUnlocked = true;
 			getAmountToSend ();
 		}
 		Debug.Log(ethereum.parsedJsonResponse ["result"]);
+		Ethereum.Responded -= wasUnlockSuccessful;
 	}
 
 }
