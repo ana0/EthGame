@@ -8,7 +8,7 @@ public class Player1Info : MonoBehaviour {
 	//Ethereum components
 	public string address = "0x74e7680630aAa2cBFf07e91069E426C2A46f065b";
 	public GameObject eth;
-	public EthereumInit ethereumCaller;
+	public Ethereum ethereum;
 	public bool accountIsUnlocked;
 	public float accountUnlockTimer;
 	public GameObject playerToReceive;
@@ -17,6 +17,8 @@ public class Player1Info : MonoBehaviour {
 	//UI Components
 	public GameObject passwordPrompt;
 	public GameObject amountToSendPrompt;
+	public GameObject messageDisplay;
+	public Text message;
 	//movement/physics components
 	public float speed;
 	Vector3 movement;
@@ -27,9 +29,11 @@ public class Player1Info : MonoBehaviour {
 		playerRigidbody = GetComponent <Rigidbody> ();
 		//Find and store a reference to the ethereum GameObject
 		eth = GameObject.FindGameObjectWithTag ("Eth");
-		ethereumCaller = eth.GetComponent<EthereumInit> ();
+		ethereum = eth.GetComponent<Ethereum> ();
 		//We're assuming the player hasn't already unlocked their account via Geth or some such
 		accountIsUnlocked = false;
+		//Going to be using this UI component fairly often
+		//message = messageDisplay.GetComponent<Text> ();
 	}
 
 	void Update () { 
@@ -83,7 +87,7 @@ public class Player1Info : MonoBehaviour {
 		Debug.Log (_value);
 		//Convert number to hex
 		amountToSend = "0x" + _value.ToString ("x");
-		ethereumCaller.ethSendTransaction (address, addressToReceive, "0x76c0", "0x9184272a000", amountToSend);
+		ethereum.ethSendTransaction (address, addressToReceive, "0x76c0", "0x9184272a000", amountToSend);
 		amountToSendPrompt.SetActive (false);
 		//clear amount to send field
 		var amountEntryLayer = amountToSendPrompt.transform.GetChild(0);
@@ -102,16 +106,15 @@ public class Player1Info : MonoBehaviour {
 
 	public void getPasswordThenSend (string password) {;
 		//Will need to parse this response and check for success
-		ethereumCaller.personalUnlockAccount (address, password, 10);
-		accountIsUnlocked = true;
+		ethereum.personalUnlockAccount (address, password, 10);
+		Ethereum.Responded += wasUnlockSuccessful;
 		passwordPrompt.SetActive (false);
-		setPasswordTimer (10.0f);
 		//clear password field
 		var passwordLayer = passwordPrompt.transform.GetChild(0);
 		InputField passwordEntryField = passwordLayer.GetComponent<InputField> ();
 		passwordEntryField.text = "";
-		//call next step - get the amount to be sent
-		getAmountToSend ();
+		//display "unlocking" message
+		message.text = "Unlocking . . .";
 	}
 
 	public void setPasswordTimer (float duration) {
@@ -128,6 +131,22 @@ public class Player1Info : MonoBehaviour {
 			accountIsUnlocked = false;
 		}
 	}
+
+	public void wasUnlockSuccessful () {
+		bool result = false;
+		if (ethereum.parsedJsonResponse ["result"] is bool) {
+			result = (bool)ethereum.parsedJsonResponse ["result"];
+		} 
+		if (result) {
+			//Text message = messageDisplay.GetComponent<Text> ();
+			message.text = "";
+			setPasswordTimer (10.0f);
+			accountIsUnlocked = true;
+			getAmountToSend ();
+		}
+		Debug.Log(ethereum.parsedJsonResponse ["result"]);
+	}
+
 }
 
 

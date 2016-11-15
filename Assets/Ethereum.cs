@@ -2,12 +2,18 @@
 using System.Collections;
 using System;
 using UnityEngine.Networking;
+using System.Globalization;
+using System.Text;
 
-public class EthereumInit : MonoBehaviour {
+public class Ethereum : MonoBehaviour {
 	//Main object for making requests to the json rpc api
 	//Requests must be first be formatted properly using the jsonAssembler
 
 	public string apiResponse;
+	public Hashtable parsedJsonResponse;
+
+	public delegate void apiResponded ();
+	public static event apiResponded Responded;
 
 	public IEnumerator Test() {
 		//Not currently called, useful sometimes in debugging to check a completely hardcoded json string
@@ -53,20 +59,43 @@ public class EthereumInit : MonoBehaviour {
 		//there's only ever one api response string, and it's overwritten by successive api calls
 		//all public methods return it
 		apiResponse = _response;
+		parsedJsonResponse = JSON.JsonDecode (apiResponse) as Hashtable;
+		if(Responded != null)
+			Responded();
 		Debug.Log (apiResponse);
 	}
 		
+//	public string personalUnlockAccount(string address, string password, int duration = 300) {
+//		//assembles args into json rpc call, and starts Call Coroutine
+//		//string address represents the account to be unlocked, password is the password of that account
+//		//duration is optional, and represents the length of time to keep the account unlocked for
+//
+//		ArrayList parameters = new ArrayList { address, password, duration };
+//		JsonAssembler jsonAssembler = new JsonAssembler("personal_unlockAccount", parameters, false);
+//		string assembledRequest = jsonAssembler.buildJson();
+//		Debug.Log (assembledRequest);
+//
+//		StartCoroutine(Call(assembledRequest, setResponse));
+//		return apiResponse;
+//	}
+
 	public string personalUnlockAccount(string address, string password, int duration = 300) {
 		//assembles args into json rpc call, and starts Call Coroutine
 		//string address represents the account to be unlocked, password is the password of that account
 		//duration is optional, and represents the length of time to keep the account unlocked for
 
 		ArrayList parameters = new ArrayList { address, password, duration };
-		JsonAssembler jsonAssembler = new JsonAssembler("personal_unlockAccount", parameters, false);
-		string assembledRequest = jsonAssembler.buildJson();
+		Hashtable data = new Hashtable ();
+		data ["jsonrpc"] = "2.0"; 
+		data ["method"] = "personal_unlockAccount";
+		data ["params"] = parameters;
+		data ["id"] = 1;
+
+		string assembledRequest = JSON.JsonEncode (data);
 		Debug.Log (assembledRequest);
 
 		StartCoroutine(Call(assembledRequest, setResponse));
+
 		return apiResponse;
 	}
 
@@ -188,3 +217,5 @@ public class JsonDisassemler {
 		jsonRpcResponse = rpcResponse;
 	}
 }
+
+
