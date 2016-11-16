@@ -14,9 +14,12 @@ public class Player1Info : MonoBehaviour {
 	public GameObject playerToReceive;
 	public string addressToReceive;
 	public string amountToSend;
+	public Hashtable watchedContracts = new Hashtable ();
 	//UI Components
 	public GameObject passwordPrompt;
 	public GameObject amountToSendPrompt;
+	public GameObject getContractAddressPrompt;
+	public GameObject getContractABIPrompt;
 	public GameObject messageDisplay;
 	public Text message;
 	//movement/physics components
@@ -96,6 +99,7 @@ public class Player1Info : MonoBehaviour {
 	}
 
 	public void unlockAccountAndSend () {
+		//@todo rename this
 		//Show UI prompt for password
 		passwordPrompt.SetActive (true);
 		var passwordLayer = passwordPrompt.transform.GetChild(0);
@@ -133,6 +137,8 @@ public class Player1Info : MonoBehaviour {
 	}
 
 	public void wasUnlockSuccessful () {
+		//used as delegate by event listener - check that account unlock was successfuk
+		//begins account unlock timer, and prompts for amount to send
 		bool result = false;
 		if (ethereum.parsedJsonResponse ["result"] is bool) {
 			result = (bool)ethereum.parsedJsonResponse ["result"];
@@ -145,6 +151,47 @@ public class Player1Info : MonoBehaviour {
 		}
 		Debug.Log(ethereum.parsedJsonResponse ["result"]);
 		Ethereum.Responded -= wasUnlockSuccessful;
+	}
+
+	public void watchContract () {
+		getContractAddressPrompt.SetActive (true);
+		var contractAddressLayer = getContractAddressPrompt.transform.GetChild(0);
+		InputField addressEntryField = contractAddressLayer.GetComponent<InputField> ();
+		//Add event listener to close window on offclick/enter
+		addressEntryField.onEndEdit.AddListener (getContractAddress);
+	}
+
+	public void getContractAddress (string contractAddress) {
+		getContractAddressPrompt.SetActive (false);
+		//being storing the contract as "watched" - in the future we'll need to be validating this address
+		watchedContracts ["temp"] = contractAddress;
+		//clear the entry field in case we want to use it again
+		var contractAddressLayer = getContractAddressPrompt.transform.GetChild(0);
+		InputField addressEntryField = contractAddressLayer.GetComponent<InputField> ();
+		addressEntryField.text = "";	
+		//open second UI element for contract ABI entry
+		promptForContractABI ();
+	}
+
+	public void promptForContractABI () {
+		getContractABIPrompt.SetActive (true);
+		var contractABILayer = getContractABIPrompt.transform.GetChild(0);
+		InputField ABIEntryField = contractABILayer.GetComponent<InputField> ();
+		//Add event listener to close window on offclick/enter
+		ABIEntryField.onEndEdit.AddListener (getABI);
+	}
+
+	public void getABI (string ABI) {
+		//Will need error checking here
+		string contractAddress = (string) watchedContracts["temp"];
+		watchedContracts.Remove ("temp");
+		watchedContracts [contractAddress] = ethereum.parseContractABI (ABI);
+		Debug.Log (ethereum.parseContractABI (ABI));
+		getContractABIPrompt.SetActive (false);
+		//clear amount to send field
+		var contractABILayer = getContractABIPrompt.transform.GetChild(0);
+		InputField ABIEntryField = contractABILayer.GetComponent<InputField> ();
+		ABIEntryField.text = "";
 	}
 
 }
