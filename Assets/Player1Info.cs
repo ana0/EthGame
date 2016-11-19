@@ -20,7 +20,7 @@ public class Player1Info : MonoBehaviour {
 	public GameObject passwordPrompt;
 	public GameObject amountToSendPrompt;
 	public GameObject contractPrompt;
-	public GameObject messageDisplay;
+	public Dropdown dropDown;
 	public Text message;
 	//movement/physics components
 	public float speed;
@@ -35,8 +35,6 @@ public class Player1Info : MonoBehaviour {
 		ethereum = eth.GetComponent<Ethereum> ();
 		//We're assuming the player hasn't already unlocked their account via Geth or some such
 		accountIsUnlocked = false;
-		//Going to be using this UI component fairly often
-		//message = messageDisplay.GetComponent<Text> ();
 	}
 
 	void Update () { 
@@ -49,9 +47,9 @@ public class Player1Info : MonoBehaviour {
 				playerToReceive = hit.transform.gameObject;
 				addressToReceive = playerToReceive.GetComponent<Player2Info> ().address;
 				if (accountIsUnlocked) {
-					getAmountToSend ();
+					prompt ("Enter Amount . . .", amountToSendPrompt, getValue);
 				} else {
-					unlockAccountAndSend ();
+					prompt ("Enter Password . . .", passwordPrompt, getPasswordThenSend);
 				}
 			}
 		}
@@ -75,14 +73,14 @@ public class Player1Info : MonoBehaviour {
 		playerRigidbody.MovePosition (transform.position + movement);
 	}
 
-	public void getAmountToSend () {
-		//Show UI prompt to enter the amount to send
-		amountToSendPrompt.SetActive (true);
-		var amountEntryLayer = amountToSendPrompt.transform.GetChild(0);
-		InputField amountEntryField = amountEntryLayer.GetComponent<InputField> ();
-		//Add event listener to close window on offclick/enter
-		amountEntryField.onEndEdit.AddListener (getValue);
-	}
+//	public void getAmountToSend () {
+//		//Show UI prompt to enter the amount to send
+//		amountToSendPrompt.SetActive (true);
+//		var amountEntryLayer = amountToSendPrompt.transform.GetChild(0);
+//		InputField amountEntryField = amountEntryLayer.GetComponent<InputField> ();
+//		//Add event listener to close window on offclick/enter
+//		amountEntryField.onEndEdit.AddListener (getValue);
+//	}
 
 	public void getValue (string value) {
 		//Will need error checking here
@@ -93,20 +91,18 @@ public class Player1Info : MonoBehaviour {
 		ethereum.ethSendTransaction (address, addressToReceive, "0x76c0", "0x9184272a000", amountToSend);
 		amountToSendPrompt.SetActive (false);
 		//clear amount to send field
-		var amountEntryLayer = amountToSendPrompt.transform.GetChild(0);
-		InputField amountEntryField = amountEntryLayer.GetComponent<InputField> ();
-		amountEntryField.text = "";
+		clearEntryField(amountToSendPrompt);
 	}
 
-	public void unlockAccountAndSend () {
-		//@todo rename this
-		//Show UI prompt for password
-		passwordPrompt.SetActive (true);
-		var passwordLayer = passwordPrompt.transform.GetChild(0);
-		InputField passwordEntryField = passwordLayer.GetComponent<InputField> ();
-		//Add event listener to close window on offclick/enter
-		passwordEntryField.onEndEdit.AddListener (getPasswordThenSend);
-	}
+//	public void unlockAccountAndSend () {
+//		//@todo rename this
+//		//Show UI prompt for password
+//		passwordPrompt.SetActive (true);
+//		var passwordLayer = passwordPrompt.transform.GetChild(0);
+//		InputField passwordEntryField = passwordLayer.GetComponent<InputField> ();
+//		//Add event listener to close window on offclick/enter
+//		passwordEntryField.onEndEdit.AddListener (getPasswordThenSend);
+//	}
 
 	public void getPasswordThenSend (string password) {;
 		//Will need to parse this response and check for success
@@ -114,9 +110,7 @@ public class Player1Info : MonoBehaviour {
 		Ethereum.Responded += wasUnlockSuccessful;
 		passwordPrompt.SetActive (false);
 		//clear password field
-		var passwordLayer = passwordPrompt.transform.GetChild(0);
-		InputField passwordEntryField = passwordLayer.GetComponent<InputField> ();
-		passwordEntryField.text = "";
+		clearEntryField(passwordPrompt);
 		//display "unlocking" message
 		message.text = "Unlocking . . .";
 	}
@@ -147,14 +141,14 @@ public class Player1Info : MonoBehaviour {
 			message.text = "";
 			setPasswordTimer (10.0f);
 			accountIsUnlocked = true;
-			getAmountToSend ();
+			prompt ("Enter Amount . . .", amountToSendPrompt, getValue);
 		}
 		Debug.Log(ethereum.parsedJsonResponse ["result"]);
 		Ethereum.Responded -= wasUnlockSuccessful;
 	}
 		
 	public void watchContract () {
-		prompt ("Enter Contract Name . . .", beginWatchedContract);
+		prompt ("Enter Contract Name . . .", contractPrompt, beginWatchedContract);
 	}
 
 	public void beginWatchedContract (string contractName) {
@@ -162,7 +156,7 @@ public class Player1Info : MonoBehaviour {
 		watchedContracts ["temp"] = contractName;
 		//clear the entry field in case we want to use it again
 		clearEntryField(contractPrompt);
-		prompt ("Enter Address . . .", getContractAddress);
+		prompt ("Enter Address . . .", contractPrompt, getContractAddress);
 	}
 		
 	public void getContractAddress (string contractAddress) {
@@ -174,7 +168,7 @@ public class Player1Info : MonoBehaviour {
 		//clear the entry field in case we want to use it again
 		clearEntryField(contractPrompt);	
 		//open UI element for contract ABI entry
-		prompt ("Enter Contract ABI . . .", finalizeWatchedContract);
+		prompt ("Enter Contract ABI . . .", contractPrompt, finalizeWatchedContract);
 	}
 		
 	public void finalizeWatchedContract (string ABI) {
@@ -185,11 +179,12 @@ public class Player1Info : MonoBehaviour {
 		watchedContracts [contractInfo [0]] = contract;
 		//clear the entry field in case we want to use it again
 		clearEntryField(contractPrompt);
+		populateDropdown ();
 	}
 		
-	public void prompt (string placeholderText, UnityAction<string> endEditCallback) {
-		contractPrompt.SetActive (true);
-		var inputLayer = contractPrompt.transform.GetChild(0);
+	public void prompt (string placeholderText, GameObject inputPrompt, UnityAction<string> endEditCallback) {
+		inputPrompt.SetActive (true);
+		var inputLayer = inputPrompt.transform.GetChild(0);
 		InputField entryField = inputLayer.GetComponent<InputField> ();
 		entryField.placeholder.GetComponent<Text>().text = placeholderText;
 		//Add event listener to close window on offclick/enter
@@ -202,7 +197,13 @@ public class Player1Info : MonoBehaviour {
 		InputField entryField = canvasLayer.GetComponent<InputField> ();
 		entryField.text = "";
 	}
-		
+
+	public void populateDropdown() {
+		foreach (DictionaryEntry pair in watchedContracts) {
+			Debug.Log (pair.Key);
+			dropDown.options.Add(new Dropdown.OptionData((string)pair.Key));
+		}
+	}
 } 
 
 
