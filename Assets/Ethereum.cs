@@ -14,6 +14,7 @@ public class Ethereum : MonoBehaviour {
 	public string contractABI;
 	public ArrayList parsedContractABI;
 
+	//event listener to fire when api responds
 	public delegate void apiResponded ();
 	public static event apiResponded Responded;
 
@@ -110,9 +111,49 @@ public class Ethereum : MonoBehaviour {
 	}
 
 	public ArrayList parseContractABI (string ABI) {
+		//create object from json of contract ABI
 		parsedContractABI = JSON.JsonDecode (ABI) as ArrayList;
 		return parsedContractABI;
 	}
 
+	public Hashtable extractCallableMethods (ArrayList parsedABI) {
+		//extract only the callable methods names, and their inputs from parsed ABI
+		//return
+		Hashtable methods = new Hashtable ();
+		for (int i = 0; i <= parsedABI.Count; i++) {
+			Hashtable element = parsedABI [i] as Hashtable;
+			if ((element ["constant"] is Boolean) && ((bool)element ["constant"] == false)) {
+				string name = (string)element ["name"];
+				ArrayList inputs = element ["imputs"] as ArrayList;
+				CallableMethod method = new CallableMethod (name, inputs);
+				methods [name] = method;
+			}
+		}
+		return methods;
+	}
+
 }
 
+public class CallableMethod {				
+			
+	public string methodName;		
+	public ArrayList inputs;	
+	public string signature;
+	public string sha;
+	public CallableMethod(string name, ArrayList _inputs){		
+		methodName = name;		
+		inputs = _inputs;
+		}
+}
+
+public class Contract {
+	
+	public string contractName;		
+	public string ABI;
+	public string contractAddress;
+	public Hashtable callableMethods;	
+	public Contract(string address, string _ABI){		
+		contractAddress = address;		
+		ABI = _ABI;
+	}
+}

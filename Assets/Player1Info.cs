@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System;
 using UnityEngine.UI;
 using UnityEngine.Events;
 
@@ -18,8 +19,7 @@ public class Player1Info : MonoBehaviour {
 	//UI Components
 	public GameObject passwordPrompt;
 	public GameObject amountToSendPrompt;
-	public GameObject getContractAddressPrompt;
-	public GameObject getContractABIPrompt;
+	public GameObject contractPrompt;
 	public GameObject messageDisplay;
 	public Text message;
 	//movement/physics components
@@ -152,49 +152,58 @@ public class Player1Info : MonoBehaviour {
 		Debug.Log(ethereum.parsedJsonResponse ["result"]);
 		Ethereum.Responded -= wasUnlockSuccessful;
 	}
-
+		
 	public void watchContract () {
-		getContractAddressPrompt.SetActive (true);
-		var contractAddressLayer = getContractAddressPrompt.transform.GetChild(0);
-		InputField addressEntryField = contractAddressLayer.GetComponent<InputField> ();
-		//Add event listener to close window on offclick/enter
-		addressEntryField.onEndEdit.AddListener (getContractAddress);
+		prompt ("Enter Contract Name . . .", beginWatchedContract);
 	}
 
-	public void getContractAddress (string contractAddress) {
-		getContractAddressPrompt.SetActive (false);
-		//being storing the contract as "watched" - in the future we'll need to be validating this address
-		watchedContracts ["temp"] = contractAddress;
+	public void beginWatchedContract (string contractName) {
+		contractPrompt.SetActive (false);
+		watchedContracts ["temp"] = contractName;
 		//clear the entry field in case we want to use it again
-		var contractAddressLayer = getContractAddressPrompt.transform.GetChild(0);
-		InputField addressEntryField = contractAddressLayer.GetComponent<InputField> ();
-		addressEntryField.text = "";	
-		//open second UI element for contract ABI entry
-		promptForContractABI ();
+		clearEntryField(contractPrompt);
+		prompt ("Enter Address . . .", getContractAddress);
 	}
-
-	public void promptForContractABI () {
-		getContractABIPrompt.SetActive (true);
-		var contractABILayer = getContractABIPrompt.transform.GetChild(0);
-		InputField ABIEntryField = contractABILayer.GetComponent<InputField> ();
-		//Add event listener to close window on offclick/enter
-		ABIEntryField.onEndEdit.AddListener (getABI);
+		
+	public void getContractAddress (string contractAddress) {
+		contractPrompt.SetActive (false);
+		//being storing the contract as "watched" - in the future we'll need to be validating this address
+		string contractName = (string)watchedContracts["temp"];
+		string[] continueContract = new string[] {contractName, contractAddress};
+		watchedContracts ["temp"] = continueContract;
+		//clear the entry field in case we want to use it again
+		clearEntryField(contractPrompt);	
+		//open UI element for contract ABI entry
+		prompt ("Enter Contract ABI . . .", finalizeWatchedContract);
 	}
-
-	public void getABI (string ABI) {
-		//Will need error checking here
-		string contractAddress = (string) watchedContracts["temp"];
+		
+	public void finalizeWatchedContract (string ABI) {
+		contractPrompt.SetActive (false);
+		string[] contractInfo = watchedContracts ["temp"] as string[];
 		watchedContracts.Remove ("temp");
-		watchedContracts [contractAddress] = ethereum.parseContractABI (ABI);
-		Debug.Log (ethereum.parseContractABI (ABI));
-		getContractABIPrompt.SetActive (false);
-		//clear amount to send field
-		var contractABILayer = getContractABIPrompt.transform.GetChild(0);
-		InputField ABIEntryField = contractABILayer.GetComponent<InputField> ();
-		ABIEntryField.text = "";
+		Contract contract = new Contract (contractInfo [1], ABI);
+		watchedContracts [contractInfo [0]] = contract;
+		//clear the entry field in case we want to use it again
+		clearEntryField(contractPrompt);
+	}
+		
+	public void prompt (string placeholderText, UnityAction<string> endEditCallback) {
+		contractPrompt.SetActive (true);
+		var inputLayer = contractPrompt.transform.GetChild(0);
+		InputField entryField = inputLayer.GetComponent<InputField> ();
+		entryField.placeholder.GetComponent<Text>().text = placeholderText;
+		//Add event listener to close window on offclick/enter
+		entryField.onEndEdit.RemoveAllListeners();
+		entryField.onEndEdit.AddListener (endEditCallback);
 	}
 
-}
+	public void clearEntryField(GameObject inputPrompt) {
+		var canvasLayer = inputPrompt.transform.GetChild(0);
+		InputField entryField = canvasLayer.GetComponent<InputField> ();
+		entryField.text = "";
+	}
+		
+} 
 
 
 
