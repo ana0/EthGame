@@ -20,7 +20,11 @@ public class Ethereum : MonoBehaviour {
 
 	public IEnumerator Test() {
 		//Not currently called, useful sometimes in debugging to check a completely hardcoded json string
-		string jsonstring = "{\"jsonrpc\":\"2.0\",\"method\":\"web3_sha3\",\"params\":[\"baz(uint32,bool)\"],\"id\":64}";
+
+		byte[] ba = Encoding.Default.GetBytes("baz(uint32,bool)");
+		var hexString = BitConverter.ToString(ba);
+		hexString = hexString.Replace("-", "");
+		string jsonstring = "{\"jsonrpc\":\"2.0\",\"method\":\"web3_sha3\",\"params\":[\"" + hexString + "\"],\"id\":64}";
 
 		var encoding = new System.Text.UTF8Encoding();
 
@@ -115,7 +119,12 @@ public class Ethereum : MonoBehaviour {
 		//assembles args into json rpc call, and starts Call Coroutine
 		//string toHash is the data being hashed 
 
-		ArrayList parameters = new ArrayList { toHash };
+		//we have to convert to a hex string, because web3 only understands those
+		byte[] ba = Encoding.Default.GetBytes(toHash);
+		var hexString = BitConverter.ToString(ba);
+		hexString = hexString.Replace("-", "");
+
+		ArrayList parameters = new ArrayList { hexString };
 		Hashtable data = new Hashtable ();
 		data ["jsonrpc"] = "2.0"; 
 		data ["method"] = "web3_sha3";
@@ -125,7 +134,7 @@ public class Ethereum : MonoBehaviour {
 		string assembledRequest = JSON.JsonEncode (data);
 		Debug.Log (assembledRequest);
 
-		StartCoroutine(Test());
+		StartCoroutine(Call(assembledRequest, setResponse));
 	}
 		
 }
@@ -151,7 +160,6 @@ public class CallableMethod {
 		//goes through the inputs, an ArrayList, and gets all the input types
 		//concatenating the method signature
 		//@to-do this could be recursively implemented
-		Debug.Log(inputs);
 		signature = methodName + "(";
 		for (int i = 0; i < inputs.Count; i++) {
 			Hashtable element = inputs [i] as Hashtable;
@@ -204,7 +212,6 @@ public class Contract {
 			if ((element ["constant"] is Boolean) && ((bool)element ["constant"] == false)) {
 				string name = (string)element ["name"];
 				ArrayList inputs = element ["inputs"] as ArrayList;
-				Debug.Log (inputs);
 				CallableMethod method = new CallableMethod (name, inputs);
 				methods [name] = method;
 			} 

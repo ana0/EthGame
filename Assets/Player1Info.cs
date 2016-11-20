@@ -206,7 +206,7 @@ public class Player1Info : MonoBehaviour {
 		foreach (DictionaryEntry pair in watchedContracts) {
 			contractDropdown.options.Add(new Dropdown.OptionData((string)pair.Key));
 			contractDropdown.onValueChanged.AddListener (showAvailableMethods);
-			Debug.Log (contractDropdown.options [1].text);
+			//Debug.Log (contractDropdown.options [1].text);
 		}
 	}
 
