@@ -20,7 +20,7 @@ public class Ethereum : MonoBehaviour {
 
 	public IEnumerator Test() {
 		//Not currently called, useful sometimes in debugging to check a completely hardcoded json string
-		string jsonstring = "{\"jsonrpc\":\"2.0\",\"method\":\"personal_unlockAccount\",\"params\":[\"0x74e7680630aAa2cBFf07e91069E426C2A46f065b\", \"test\",],\"id\":1}";
+		string jsonstring = "{\"jsonrpc\":\"2.0\",\"method\":\"web3_sha3\",\"params\":[\"baz(uint32,bool)\"],\"id\":64}";
 
 		var encoding = new System.Text.UTF8Encoding();
 
@@ -34,6 +34,7 @@ public class Ethereum : MonoBehaviour {
 
 		yield return www;
 		Debug.Log(www.text);
+		yield break;
 	}
 		
 	private IEnumerator Call(string jsonstring, Action<string> resultCallback) {
@@ -110,50 +111,105 @@ public class Ethereum : MonoBehaviour {
 		StartCoroutine(Call(assembledRequest, setResponse));
 	}
 
-	public ArrayList parseContractABI (string ABI) {
-		//create object from json of contract ABI
-		parsedContractABI = JSON.JsonDecode (ABI) as ArrayList;
-		return parsedContractABI;
-	}
+	public void web3Sha3 (string toHash) {
+		//assembles args into json rpc call, and starts Call Coroutine
+		//string toHash is the data being hashed 
 
-	public Hashtable extractCallableMethods (ArrayList parsedABI) {
-		//extract only the callable methods names, and their inputs from parsed ABI
-		//return
-		Hashtable methods = new Hashtable ();
-		for (int i = 0; i <= parsedABI.Count; i++) {
-			Hashtable element = parsedABI [i] as Hashtable;
-			if ((element ["constant"] is Boolean) && ((bool)element ["constant"] == false)) {
-				string name = (string)element ["name"];
-				ArrayList inputs = element ["imputs"] as ArrayList;
-				CallableMethod method = new CallableMethod (name, inputs);
-				methods [name] = method;
-			}
-		}
-		return methods;
-	}
+		ArrayList parameters = new ArrayList { toHash };
+		Hashtable data = new Hashtable ();
+		data ["jsonrpc"] = "2.0"; 
+		data ["method"] = "web3_sha3";
+		data ["params"] = parameters;
+		data ["id"] = 64;
 
+		string assembledRequest = JSON.JsonEncode (data);
+		Debug.Log (assembledRequest);
+
+		StartCoroutine(Test());
+	}
+		
 }
 
 public class CallableMethod {				
 			
 	public string methodName;		
 	public ArrayList inputs;	
+	public GameObject eth;
+	public Ethereum ethereum;
 	public string signature;
 	public string sha;
 	public CallableMethod(string name, ArrayList _inputs){		
 		methodName = name;		
 		inputs = _inputs;
+		eth = GameObject.FindGameObjectWithTag ("Eth");
+		ethereum = eth.GetComponent<Ethereum> ();
+		buildSignature();
+		getSha ();
+	}
+
+	public void buildSignature () {
+		//goes through the inputs, an ArrayList, and gets all the input types
+		//concatenating the method signature
+		//@to-do this could be recursively implemented
+		Debug.Log(inputs);
+		signature = methodName + "(";
+		for (int i = 0; i < inputs.Count; i++) {
+			Hashtable element = inputs [i] as Hashtable;
+			signature = signature + (string)element ["type"] + ",";
 		}
+		signature = signature.TrimEnd(',') + ")";
+		Debug.Log (signature);
+	}
+
+	public void getSha () {
+		//byte[] asciiBytes = Encoding.ASCII.GetBytes(signature);
+		ethereum.web3Sha3 (signature);
+		Ethereum.Responded += wasSha3Received;
+	}
+
+	public void wasSha3Received () {
+//		parse Sha response here
+		Debug.Log(ethereum.parsedJsonResponse ["result"]);
+		Ethereum.Responded -= wasSha3Received;
+	}
 }
 
 public class Contract {
 	
 	public string contractName;		
 	public string ABI;
+	public ArrayList parsedContractABI;
 	public string contractAddress;
 	public Hashtable callableMethods;	
 	public Contract(string address, string _ABI){		
 		contractAddress = address;		
 		ABI = _ABI;
 	}
+
+	public void parseContractABI (string unparsedABI) {
+		//create object from json of contract ABI
+		parsedContractABI = JSON.JsonDecode (unparsedABI) as ArrayList;
+	}
+
+	public void extractCallableMethods () {
+		//extracts the callable methods names, and their inputs from parsed ABI
+		//creates method objects for all of them and stores them on a hashtable methods
+		//@to-do throws all kinds of errors if user enters an incorrect ABI
+		Hashtable methods = new Hashtable ();
+		for (int i = 0; i < parsedContractABI.Count; i++) {
+			Hashtable element = parsedContractABI [i] as Hashtable;
+			if (!element.ContainsKey ("constant")) {
+				continue;
+			} 
+			if ((element ["constant"] is Boolean) && ((bool)element ["constant"] == false)) {
+				string name = (string)element ["name"];
+				ArrayList inputs = element ["inputs"] as ArrayList;
+				Debug.Log (inputs);
+				CallableMethod method = new CallableMethod (name, inputs);
+				methods [name] = method;
+			} 
+		}
+		callableMethods = methods;
+	}
+		
 }

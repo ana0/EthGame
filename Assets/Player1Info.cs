@@ -15,12 +15,14 @@ public class Player1Info : MonoBehaviour {
 	public GameObject playerToReceive;
 	public string addressToReceive;
 	public string amountToSend;
+	//@to-do watched contracts could have types?
 	public Hashtable watchedContracts = new Hashtable ();
 	//UI Components
 	public GameObject passwordPrompt;
 	public GameObject amountToSendPrompt;
 	public GameObject contractPrompt;
-	public Dropdown dropDown;
+	public Dropdown contractDropdown;
+	public GameObject methodDropdown;
 	public Text message;
 	//movement/physics components
 	public float speed;
@@ -176,10 +178,12 @@ public class Player1Info : MonoBehaviour {
 		string[] contractInfo = watchedContracts ["temp"] as string[];
 		watchedContracts.Remove ("temp");
 		Contract contract = new Contract (contractInfo [1], ABI);
+		contract.parseContractABI (ABI);
+		contract.extractCallableMethods ();
 		watchedContracts [contractInfo [0]] = contract;
 		//clear the entry field in case we want to use it again
 		clearEntryField(contractPrompt);
-		populateDropdown ();
+		populateContractDropdown ();
 	}
 		
 	public void prompt (string placeholderText, GameObject inputPrompt, UnityAction<string> endEditCallback) {
@@ -198,12 +202,21 @@ public class Player1Info : MonoBehaviour {
 		entryField.text = "";
 	}
 
-	public void populateDropdown() {
+	public void populateContractDropdown() {
 		foreach (DictionaryEntry pair in watchedContracts) {
-			Debug.Log (pair.Key);
-			dropDown.options.Add(new Dropdown.OptionData((string)pair.Key));
+			contractDropdown.options.Add(new Dropdown.OptionData((string)pair.Key));
+			contractDropdown.onValueChanged.AddListener (showAvailableMethods);
+			Debug.Log (contractDropdown.options [1].text);
 		}
 	}
+
+	public void showAvailableMethods(int index) {
+		string selectedName = contractDropdown.options [index].text;
+		Contract selectedContract = watchedContracts [selectedName] as Contract;
+		//add methods to dropdown here
+		methodDropdown.SetActive (true);
+	}
+
 } 
 
 
