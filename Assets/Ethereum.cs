@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 using System;
 using UnityEngine.Networking;
 using System.Globalization;
@@ -153,7 +154,7 @@ public class CallableMethod {
 		eth = GameObject.FindGameObjectWithTag ("Eth");
 		ethereum = eth.GetComponent<Ethereum> ();
 		buildSignature();
-		getSha ();
+		sha = "";
 	}
 
 	public void buildSignature () {
@@ -170,15 +171,24 @@ public class CallableMethod {
 	}
 
 	public void getSha () {
-		//byte[] asciiBytes = Encoding.ASCII.GetBytes(signature);
 		ethereum.web3Sha3 (signature);
-		Ethereum.Responded += wasSha3Received;
+		Ethereum.Responded += setSha3;
 	}
 
-	public void wasSha3Received () {
-//		parse Sha response here
-		Debug.Log(ethereum.parsedJsonResponse ["result"]);
-		Ethereum.Responded -= wasSha3Received;
+	public void setSha3 () {
+		//event listener for parsing the sha3 hash and extracting the bytes needed for method signature
+		//will need error checking
+		string result = (string)ethereum.parsedJsonResponse ["result"];
+		sha = result.Substring (0, 10);
+		Debug.Log (result);
+		Ethereum.Responded -= setSha3;
+	}
+
+	public void sendTransaction(List<string> enteredArgs) {
+		if (sha == "") {
+			getSha ();
+		}
+
 	}
 }
 
@@ -206,9 +216,12 @@ public class Contract {
 		Hashtable methods = new Hashtable ();
 		for (int i = 0; i < parsedContractABI.Count; i++) {
 			Hashtable element = parsedContractABI [i] as Hashtable;
+			//check if element is a function
 			if (!element.ContainsKey ("constant")) {
 				continue;
 			} 
+			//now check what the value of constant
+			//may also need to check the length of inputs
 			if ((element ["constant"] is Boolean) && ((bool)element ["constant"] == false)) {
 				string name = (string)element ["name"];
 				ArrayList inputs = element ["inputs"] as ArrayList;
@@ -216,6 +229,8 @@ public class Contract {
 				methods [name] = method;
 			} 
 		}
+		//return a hash table {name: CallableMethod}
+		//could probably replace with a generic 
 		callableMethods = methods;
 	}
 		

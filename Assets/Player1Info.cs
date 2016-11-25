@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 using System;
 using UnityEngine.UI;
 using UnityEngine.Events;
@@ -15,14 +16,21 @@ public class Player1Info : MonoBehaviour {
 	public GameObject playerToReceive;
 	public string addressToReceive;
 	public string amountToSend;
-	//@to-do watched contracts could have types?
+	public Contract selectedContract;
+	public CallableMethod selectedMethod;
+	public List<string> methodArgs;
 	public Hashtable watchedContracts = new Hashtable ();
 	//UI Components
 	public GameObject passwordPrompt;
+	//@to-do amount to send prompt is redundant
 	public GameObject amountToSendPrompt;
 	public GameObject contractPrompt;
+	//@to-do change contractDropdown to gameObject for consistency
+	public GameObject sendMethodTx;
 	public Dropdown contractDropdown;
-	public GameObject methodDropdown;
+	public GameObject methodDropdownParent;
+	public Dropdown methodDropdown;
+
 	public Text message;
 	//movement/physics components
 	public float speed;
@@ -37,6 +45,10 @@ public class Player1Info : MonoBehaviour {
 		ethereum = eth.GetComponent<Ethereum> ();
 		//We're assuming the player hasn't already unlocked their account via Geth or some such
 		accountIsUnlocked = false;
+		//Setup UI components
+		contractDropdown.captionText.text = "Contracts";
+		methodDropdown = methodDropdownParent.GetComponent<Dropdown> ();
+		methodDropdown.captionText.text = "Methods";
 	}
 
 	void Update () { 
@@ -74,16 +86,7 @@ public class Player1Info : MonoBehaviour {
 		//Add movement vector to the player's current transform
 		playerRigidbody.MovePosition (transform.position + movement);
 	}
-
-//	public void getAmountToSend () {
-//		//Show UI prompt to enter the amount to send
-//		amountToSendPrompt.SetActive (true);
-//		var amountEntryLayer = amountToSendPrompt.transform.GetChild(0);
-//		InputField amountEntryField = amountEntryLayer.GetComponent<InputField> ();
-//		//Add event listener to close window on offclick/enter
-//		amountEntryField.onEndEdit.AddListener (getValue);
-//	}
-
+		
 	public void getValue (string value) {
 		//Will need error checking here
 		int _value = int.Parse (value);
@@ -95,17 +98,7 @@ public class Player1Info : MonoBehaviour {
 		//clear amount to send field
 		clearEntryField(amountToSendPrompt);
 	}
-
-//	public void unlockAccountAndSend () {
-//		//@todo rename this
-//		//Show UI prompt for password
-//		passwordPrompt.SetActive (true);
-//		var passwordLayer = passwordPrompt.transform.GetChild(0);
-//		InputField passwordEntryField = passwordLayer.GetComponent<InputField> ();
-//		//Add event listener to close window on offclick/enter
-//		passwordEntryField.onEndEdit.AddListener (getPasswordThenSend);
-//	}
-
+		
 	public void getPasswordThenSend (string password) {;
 		//Will need to parse this response and check for success
 		ethereum.personalUnlockAccount (address, password, 10);
@@ -203,6 +196,7 @@ public class Player1Info : MonoBehaviour {
 	}
 
 	public void populateContractDropdown() {
+	//@to-do make general function and reuse in below function w showavailable
 		foreach (DictionaryEntry pair in watchedContracts) {
 			contractDropdown.options.Add(new Dropdown.OptionData((string)pair.Key));
 			contractDropdown.onValueChanged.AddListener (showAvailableMethods);
@@ -210,13 +204,38 @@ public class Player1Info : MonoBehaviour {
 		}
 	}
 
+	//@to-do rename this
 	public void showAvailableMethods(int index) {
 		string selectedName = contractDropdown.options [index].text;
-		Contract selectedContract = watchedContracts [selectedName] as Contract;
-		//add methods to dropdown here
-		methodDropdown.SetActive (true);
+		selectedContract = watchedContracts [selectedName] as Contract;
+		//add methods to dropdown
+		methodDropdown.options.Clear();
+		foreach (DictionaryEntry pair in selectedContract.callableMethods) {
+			methodDropdown.options.Add (new Dropdown.OptionData ((string)pair.Key));
+			CallableMethod callable = pair.Value as CallableMethod;
+			Debug.Log (callable.sha);
+			methodDropdown.onValueChanged.AddListener (setSelectedMethod);
+		}
+		methodDropdownParent.SetActive (true);
 	}
 
+	public void setSelectedMethod(int index) {
+		sendMethodTx.SetActive (true);
+		string selectedName = methodDropdown.options [index].text;
+		selectedMethod = selectedContract.callableMethods [selectedName] as CallableMethod;
+
+	}
+
+	public void callMethod() {
+		for (int i = 9; i < selectedMethod.inputs; i++) {
+			prompt ("Enter first arg . . .", contractPrompt, setMethodArg);
+			clearEntryField (contractPrompt);
+		}
+	}
+
+	public void setMethodArg(string arg) {
+		methodArgs.Add (arg);
+	}
 } 
 
 
