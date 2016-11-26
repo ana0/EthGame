@@ -30,6 +30,7 @@ public class Player1Info : MonoBehaviour {
 	public Dropdown contractDropdown;
 	public GameObject methodDropdownParent;
 	public Dropdown methodDropdown;
+	public bool isEnteringInput;
 
 	public Text message;
 	//movement/physics components
@@ -49,6 +50,8 @@ public class Player1Info : MonoBehaviour {
 		contractDropdown.captionText.text = "Contracts";
 		methodDropdown = methodDropdownParent.GetComponent<Dropdown> ();
 		methodDropdown.captionText.text = "Methods";
+		//No way to begin the game with an input prompt active
+		isEnteringInput = false;
 	}
 
 	void Update () { 
@@ -171,7 +174,7 @@ public class Player1Info : MonoBehaviour {
 	}
 		
 	public void finalizeWatchedContract (string ABI) {
-		//final stage of watching a contract, collects ABI
+		//final stage of watching a contract, collects ABI and constructs contract object
 		contractPrompt.SetActive (false);
 		//unpack the temp string array held in watchedContracts and delete it
 		string[] contractInfo = watchedContracts ["temp"] as string[];
@@ -193,6 +196,7 @@ public class Player1Info : MonoBehaviour {
 	}
 		
 	public void prompt (string placeholderText, GameObject inputPrompt, UnityAction<string> endEditCallback) {
+		isEnteringInput = true;
 		inputPrompt.SetActive (true);
 		var inputLayer = inputPrompt.transform.GetChild(0);
 		InputField entryField = inputLayer.GetComponent<InputField> ();
@@ -204,20 +208,12 @@ public class Player1Info : MonoBehaviour {
 
 	public void clearEntryField(GameObject inputPrompt) {
 		//clears the input prompt for reuse
+		isEnteringInput = false;
 		var canvasLayer = inputPrompt.transform.GetChild(0);
 		InputField entryField = canvasLayer.GetComponent<InputField> ();
 		entryField.text = "";
 	}
-
-//	public void populateContractDropdown() {
-//	//@to-do make general function and reuse in below function w showavailable
-//		foreach (DictionaryEntry pair in watchedContracts) {
-//			contractDropdown.options.Add(new Dropdown.OptionData((string)pair.Key));
-//			contractDropdown.onValueChanged.AddListener (showAvailableMethods);
-//			//Debug.Log (contractDropdown.options [1].text);
-//		}
-//	}
-
+		
 	public void populateDropdown(Dropdown dropdown, Hashtable options, UnityAction<int> valueChangedCallback) {
 		dropdown.onValueChanged.RemoveAllListeners ();
 		dropdown.options.Clear ();
@@ -226,21 +222,6 @@ public class Player1Info : MonoBehaviour {
 		}
 		dropdown.onValueChanged.AddListener (valueChangedCallback);
 	}
-
-	//@to-do rename this
-//	public void showAvailableMethods(int index) {
-//		string selectedName = contractDropdown.options [index].text;
-//		selectedContract = watchedContracts [selectedName] as Contract;
-//		//add methods to dropdown
-//		methodDropdown.options.Clear();
-//		foreach (DictionaryEntry pair in selectedContract.callableMethods) {
-//			methodDropdown.options.Add (new Dropdown.OptionData ((string)pair.Key));
-//			CallableMethod callable = pair.Value as CallableMethod;
-//			Debug.Log (callable.sha);
-//			methodDropdown.onValueChanged.AddListener (setSelectedMethod);
-//		}
-//		methodDropdownParent.SetActive (true);
-//	}
 
 	public void setSelectedContract(int index) {
 		string selectedName = contractDropdown.options [index].text;
@@ -254,14 +235,40 @@ public class Player1Info : MonoBehaviour {
 	}
 
 	public void callMethod() {
-		for (int i = 9; i < selectedMethod.inputs.Count; i++) {
-			prompt ("Enter first arg . . .", contractPrompt, setMethodArg);
-			clearEntryField (contractPrompt);
+		Debug.Log (selectedMethod.inputs.Count);
+//		for (int i = 0; i < selectedMethod.inputs.Count; i++) {
+//			prompt ("Enter arg . . .", contractPrompt, setMethodArg);
+//			//clearEntryField (contractPrompt);
+//		}
+//		selectedMethod.sendTransaction (methodArgs);
+		StartCoroutine(collectArgs());
+	}
+
+	public bool doneEntering() {
+		if (isEnteringInput) {
+			return false;
 		}
-		selectedMethod.sendTransaction (methodArgs);
+		return true;
+	}
+
+	private IEnumerator collectArgs() {
+	
+		for (int i = 0; i < selectedMethod.inputs.Count; i++) {
+			Hashtable arg = selectedMethod.inputs [i] as Hashtable;
+			string argtype = (string)arg ["type"];
+			prompt ("Enter " + argtype, contractPrompt, setMethodArg);
+			yield return new WaitUntil(doneEntering);
+		}
+
+		//string response = www.text;
+		//Return the api response with a callback
+		//resultCallback(response);
+		yield break;
 	}
 
 	public void setMethodArg(string arg) {
+		clearEntryField (contractPrompt);
+		contractPrompt.SetActive (false);
 		methodArgs.Add (arg);
 	}
 } 
