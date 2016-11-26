@@ -147,36 +147,49 @@ public class Player1Info : MonoBehaviour {
 	}
 
 	public void beginWatchedContract (string contractName) {
+		//first stage of watching a contract, collects the contract name
 		contractPrompt.SetActive (false);
+		//begin a temporary entry in watched contracts for storing contract info as we collect it
+		//to be cleared in final stage of watching contract
 		watchedContracts ["temp"] = contractName;
-		//clear the entry field in case we want to use it again
 		clearEntryField(contractPrompt);
 		prompt ("Enter Address . . .", contractPrompt, getContractAddress);
 	}
 		
 	public void getContractAddress (string contractAddress) {
+		//second stage of watching a contract, collects contract address
 		contractPrompt.SetActive (false);
-		//being storing the contract as "watched" - in the future we'll need to be validating this address
+		//unpack the string stored in the first stage of watching the contract
 		string contractName = (string)watchedContracts["temp"];
+		//construct a string array of contract name and contract address
+		//and re-store it at the temp spot
 		string[] continueContract = new string[] {contractName, contractAddress};
 		watchedContracts ["temp"] = continueContract;
-		//clear the entry field in case we want to use it again
 		clearEntryField(contractPrompt);	
 		//open UI element for contract ABI entry
 		prompt ("Enter Contract ABI . . .", contractPrompt, finalizeWatchedContract);
 	}
 		
 	public void finalizeWatchedContract (string ABI) {
+		//final stage of watching a contract, collects ABI
 		contractPrompt.SetActive (false);
+		//unpack the temp string array held in watchedContracts and delete it
 		string[] contractInfo = watchedContracts ["temp"] as string[];
 		watchedContracts.Remove ("temp");
+		//create a new contract object with that info
 		Contract contract = new Contract (contractInfo [1], ABI);
 		contract.parseContractABI (ABI);
 		contract.extractCallableMethods ();
+		//"finalized" items in watched Contracts have the format {contractName: contractObject}
 		watchedContracts [contractInfo [0]] = contract;
-		//clear the entry field in case we want to use it again
 		clearEntryField(contractPrompt);
-		populateContractDropdown ();
+		//show and populate contract interaction dropdowns
+		populateDropdown(contractDropdown, watchedContracts, setSelectedContract);
+		setSelectedContract (0);
+		populateDropdown (methodDropdown, selectedContract.callableMethods, setSelectedMethod);
+		setSelectedMethod (0);
+		methodDropdownParent.SetActive (true);
+		sendMethodTx.SetActive (true);
 	}
 		
 	public void prompt (string placeholderText, GameObject inputPrompt, UnityAction<string> endEditCallback) {
@@ -190,47 +203,62 @@ public class Player1Info : MonoBehaviour {
 	}
 
 	public void clearEntryField(GameObject inputPrompt) {
+		//clears the input prompt for reuse
 		var canvasLayer = inputPrompt.transform.GetChild(0);
 		InputField entryField = canvasLayer.GetComponent<InputField> ();
 		entryField.text = "";
 	}
 
-	public void populateContractDropdown() {
-	//@to-do make general function and reuse in below function w showavailable
-		foreach (DictionaryEntry pair in watchedContracts) {
-			contractDropdown.options.Add(new Dropdown.OptionData((string)pair.Key));
-			contractDropdown.onValueChanged.AddListener (showAvailableMethods);
-			//Debug.Log (contractDropdown.options [1].text);
+//	public void populateContractDropdown() {
+//	//@to-do make general function and reuse in below function w showavailable
+//		foreach (DictionaryEntry pair in watchedContracts) {
+//			contractDropdown.options.Add(new Dropdown.OptionData((string)pair.Key));
+//			contractDropdown.onValueChanged.AddListener (showAvailableMethods);
+//			//Debug.Log (contractDropdown.options [1].text);
+//		}
+//	}
+
+	public void populateDropdown(Dropdown dropdown, Hashtable options, UnityAction<int> valueChangedCallback) {
+		dropdown.onValueChanged.RemoveAllListeners ();
+		dropdown.options.Clear ();
+		foreach (DictionaryEntry pair in options) {
+			dropdown.options.Add(new Dropdown.OptionData((string)pair.Key));
 		}
+		dropdown.onValueChanged.AddListener (valueChangedCallback);
 	}
 
 	//@to-do rename this
-	public void showAvailableMethods(int index) {
+//	public void showAvailableMethods(int index) {
+//		string selectedName = contractDropdown.options [index].text;
+//		selectedContract = watchedContracts [selectedName] as Contract;
+//		//add methods to dropdown
+//		methodDropdown.options.Clear();
+//		foreach (DictionaryEntry pair in selectedContract.callableMethods) {
+//			methodDropdown.options.Add (new Dropdown.OptionData ((string)pair.Key));
+//			CallableMethod callable = pair.Value as CallableMethod;
+//			Debug.Log (callable.sha);
+//			methodDropdown.onValueChanged.AddListener (setSelectedMethod);
+//		}
+//		methodDropdownParent.SetActive (true);
+//	}
+
+	public void setSelectedContract(int index) {
 		string selectedName = contractDropdown.options [index].text;
 		selectedContract = watchedContracts [selectedName] as Contract;
-		//add methods to dropdown
-		methodDropdown.options.Clear();
-		foreach (DictionaryEntry pair in selectedContract.callableMethods) {
-			methodDropdown.options.Add (new Dropdown.OptionData ((string)pair.Key));
-			CallableMethod callable = pair.Value as CallableMethod;
-			Debug.Log (callable.sha);
-			methodDropdown.onValueChanged.AddListener (setSelectedMethod);
-		}
-		methodDropdownParent.SetActive (true);
 	}
 
 	public void setSelectedMethod(int index) {
-		sendMethodTx.SetActive (true);
 		string selectedName = methodDropdown.options [index].text;
 		selectedMethod = selectedContract.callableMethods [selectedName] as CallableMethod;
 
 	}
 
 	public void callMethod() {
-		for (int i = 9; i < selectedMethod.inputs; i++) {
+		for (int i = 9; i < selectedMethod.inputs.Count; i++) {
 			prompt ("Enter first arg . . .", contractPrompt, setMethodArg);
 			clearEntryField (contractPrompt);
 		}
+		selectedMethod.sendTransaction (methodArgs);
 	}
 
 	public void setMethodArg(string arg) {

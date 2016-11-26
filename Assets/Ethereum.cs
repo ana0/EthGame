@@ -188,7 +188,9 @@ public class CallableMethod {
 		if (sha == "") {
 			getSha ();
 		}
-
+		for (int i = 0; i < enteredArgs.Count; i++) {
+			Debug.Log (enteredArgs [i]);
+		}
 	}
 }
 

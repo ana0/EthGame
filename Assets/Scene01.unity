@@ -423,6 +423,7 @@ GameObject:
   - 222: {fileID: 344083437}
   - 114: {fileID: 344083436}
   - 114: {fileID: 344083435}
+  - 114: {fileID: 344083438}
   m_Layer: 5
   m_Name: Call Method
   m_TagString: Untagged
@@ -487,7 +488,18 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 344083436}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 1993826980}
+        m_MethodName: callMethod
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
     m_TypeName: UnityEngine.UI.Button+ButtonClickedEvent, UnityEngine.UI, Version=1.0.0.0,
       Culture=neutral, PublicKeyToken=null
 --- !u!114 &344083436
@@ -523,6 +535,17 @@ CanvasRenderer:
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 344083433}
+--- !u!114 &344083438
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 344083433}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aee4619fab5ae914cb006e6ef86a56ad, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &467578594
 GameObject:
   m_ObjectHideFlags: 0
@@ -4295,12 +4318,14 @@ MonoBehaviour:
   playerToReceive: {fileID: 524148283}
   addressToReceive: 
   amountToSend: 
+  methodArgs: []
   passwordPrompt: {fileID: 121996221}
   amountToSendPrompt: {fileID: 956405734}
   contractPrompt: {fileID: 1985210618}
   sendMethodTx: {fileID: 344083433}
   contractDropdown: {fileID: 1975280177}
-  methodDropdown: {fileID: 792312932}
+  methodDropdownParent: {fileID: 792312932}
+  methodDropdown: {fileID: 792312934}
   message: {fileID: 1459401221}
   speed: 5
 --- !u!1 &2018596056
