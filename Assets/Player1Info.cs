@@ -38,6 +38,12 @@ public class Player1Info : MonoBehaviour {
 	Vector3 movement;
 	Rigidbody playerRigidbody;
 
+	/*
+	 * 
+	 * Game Loop
+	 * 
+ 	 */
+
 	void Awake () {
 		//Set up a rigidbody so the player doesn't fall through the world plane, etc
 		playerRigidbody = GetComponent <Rigidbody> ();
@@ -65,7 +71,7 @@ public class Player1Info : MonoBehaviour {
 				playerToReceive = hit.transform.gameObject;
 				addressToReceive = playerToReceive.GetComponent<Player2Info> ().address;
 				if (accountIsUnlocked) {
-					prompt ("Enter Amount . . .", amountToSendPrompt, getValue);
+					prompt ("Enter Amount . . .", amountToSendPrompt, getValueandSendTx);
 				} else {
 					StartCoroutine (unlockAndSend ());
 				}
@@ -73,6 +79,7 @@ public class Player1Info : MonoBehaviour {
 		}
 		passwordTimerManager ();
 	}
+
 
 	void FixedUpdate () {
 		//Get keyboard input and move player
@@ -83,6 +90,12 @@ public class Player1Info : MonoBehaviour {
 		Move (h, v);
 	}
 
+	/*
+	 * 
+	 * Physics
+	 * 
+ 	 */
+
 	public void Move (float h, float v) {
 		//Set movement vector from keyboard input
 		movement.Set (h, 0f, v);
@@ -90,10 +103,50 @@ public class Player1Info : MonoBehaviour {
 		//Add movement vector to the player's current transform
 		playerRigidbody.MovePosition (transform.position + movement);
 	}
+
+	/*
+	 * 
+	 * Ui helpers
+	 * 
+ 	 */
+
+	public void prompt (string placeholderText, GameObject inputPrompt, UnityAction<string> endEditCallback) {
+		isEnteringInput = true;
+		inputPrompt.SetActive (true);
+		var inputLayer = inputPrompt.transform.GetChild(0);
+		InputField entryField = inputLayer.GetComponent<InputField> ();
+		entryField.placeholder.GetComponent<Text>().text = placeholderText;
+		//Add event listener to close window on offclick/enter
+		entryField.onEndEdit.RemoveAllListeners();
+		entryField.onEndEdit.AddListener (endEditCallback);
+	}
+
+	public void clearEntryField(GameObject inputPrompt) {
+		//clears the input prompt for reuse
+		isEnteringInput = false;
+		var canvasLayer = inputPrompt.transform.GetChild(0);
+		InputField entryField = canvasLayer.GetComponent<InputField> ();
+		entryField.text = "";
+	}
+
+	public void populateDropdown(Dropdown dropdown, Hashtable options, UnityAction<int> valueChangedCallback) {
+		dropdown.onValueChanged.RemoveAllListeners ();
+		dropdown.options.Clear ();
+		foreach (DictionaryEntry pair in options) {
+			dropdown.options.Add(new Dropdown.OptionData((string)pair.Key));
+		}
+		dropdown.onValueChanged.AddListener (valueChangedCallback);
+	}
+
+	/*
+	 * 
+	 * Password management and event listeners for standard transaction
+	 * 
+ 	 */
 		
-	public void getValue (string value) {
-		//Will need error checking here
-		//responsible for actually sending the transaction - maybe needs name change
+	public void getValueandSendTx (string value) {
+		//Event listener, gets value when sending a standard tx
+		//@to-do will throw an error when passed a non-parseable string or a long
 		int _value = int.Parse (value);
 		Debug.Log (_value);
 		//Convert number to hex
@@ -105,7 +158,8 @@ public class Player1Info : MonoBehaviour {
 	}
 
 	public bool doneUnlocking() {
-		//wrapper for the isAccountUnlocked switch 
+		//Wrapper for the isAccountUnlocked switch 
+		//So that the boolean can be checked as a function by yield waitUntil
 		if (accountIsUnlocked) {
 			return true;
 		}
@@ -114,15 +168,15 @@ public class Player1Info : MonoBehaviour {
 
 	private IEnumerator unlockAndSend() {
 		//prompts for password, and then waits until account is unlocked
-		prompt ("Enter Password . . .", passwordPrompt, getPassword);
+		prompt ("Enter Password . . .", passwordPrompt, getPasswordandUnlock);
 		yield return new WaitUntil(doneUnlocking);
 
-		prompt ("Enter Amount . . .", amountToSendPrompt, getValue);
+		prompt ("Enter Amount . . .", amountToSendPrompt, getValueandSendTx);
 		yield break;
 	}
 		
-	public void getPassword (string password) {;
-		//Will need to parse this response and check for success
+	public void getPasswordandUnlock (string password) {;
+		//Event listener attempts to unlock the account using the entered password
 		ethereum.personalUnlockAccount (address, password, 10);
 		Ethereum.Responded += wasUnlockSuccessful;
 		passwordPrompt.SetActive (false);
@@ -149,7 +203,7 @@ public class Player1Info : MonoBehaviour {
 
 	public void wasUnlockSuccessful () {
 		//used as delegate by event listener - check that account unlock was successfuk
-		//begins account unlock timer, and prompts for amount to send
+		//begins account unlock timer
 		bool result = false;
 		if (ethereum.parsedJsonResponse ["result"] is bool) {
 			result = (bool)ethereum.parsedJsonResponse ["result"];
@@ -158,13 +212,18 @@ public class Player1Info : MonoBehaviour {
 			message.text = "";
 			setPasswordTimer (10.0f);
 			accountIsUnlocked = true;
-			//prompt ("Enter Amount . . .", amountToSendPrompt, getValue);
 		} else {
 			message.text = "";
 		}
 		Debug.Log(ethereum.parsedJsonResponse ["result"]);
 		Ethereum.Responded -= wasUnlockSuccessful;
 	}
+
+	/*
+	 * 
+	 * Watch-contract flow and contract interaction 
+	 * 
+ 	 */
 		
 	public void watchContract () {
 		prompt ("Enter Contract Name . . .", contractPrompt, beginWatchedContract);
@@ -215,47 +274,23 @@ public class Player1Info : MonoBehaviour {
 		methodDropdownParent.SetActive (true);
 		sendMethodTx.SetActive (true);
 	}
-		
-	public void prompt (string placeholderText, GameObject inputPrompt, UnityAction<string> endEditCallback) {
-		isEnteringInput = true;
-		inputPrompt.SetActive (true);
-		var inputLayer = inputPrompt.transform.GetChild(0);
-		InputField entryField = inputLayer.GetComponent<InputField> ();
-		entryField.placeholder.GetComponent<Text>().text = placeholderText;
-		//Add event listener to close window on offclick/enter
-		entryField.onEndEdit.RemoveAllListeners();
-		entryField.onEndEdit.AddListener (endEditCallback);
-	}
-
-	public void clearEntryField(GameObject inputPrompt) {
-		//clears the input prompt for reuse
-		isEnteringInput = false;
-		var canvasLayer = inputPrompt.transform.GetChild(0);
-		InputField entryField = canvasLayer.GetComponent<InputField> ();
-		entryField.text = "";
-	}
-		
-	public void populateDropdown(Dropdown dropdown, Hashtable options, UnityAction<int> valueChangedCallback) {
-		dropdown.onValueChanged.RemoveAllListeners ();
-		dropdown.options.Clear ();
-		foreach (DictionaryEntry pair in options) {
-			dropdown.options.Add(new Dropdown.OptionData((string)pair.Key));
-		}
-		dropdown.onValueChanged.AddListener (valueChangedCallback);
-	}
 
 	public void setSelectedContract(int index) {
+		//Sets the selectedContract variable, and gathers the methods associated with it
 		string selectedName = contractDropdown.options [index].text;
 		selectedContract = watchedContracts [selectedName] as Contract;
 		//must also refresh selected methods
 		populateDropdown (methodDropdown, selectedContract.callableMethods, setSelectedMethod);
-		contractDropdown.captionText.text = "Contracts";
 		setSelectedMethod (0);
+		//Refresh text
+		contractDropdown.captionText.text = "Contracts";
 	}
 
 	public void setSelectedMethod(int index) {
+		//Sets the selectedMethod variable 
 		string selectedName = methodDropdown.options [index].text;
 		selectedMethod = selectedContract.callableMethods [selectedName] as CallableMethod;
+		//Refresh Text
 		methodDropdown.captionText.text = "Methods";
 	}
 
@@ -266,6 +301,7 @@ public class Player1Info : MonoBehaviour {
 
 	public bool doneEntering() {
 		//wrapper for the isEnteringInput switch 
+		//So that the boolean can be checked as a function by yield waitUntil
 		if (isEnteringInput) {
 			return false;
 		}
@@ -285,7 +321,7 @@ public class Player1Info : MonoBehaviour {
 		}
 		//Pass gathered args over to the method object for encoding
 		if (!accountIsUnlocked) {
-			prompt ("Enter Password . . .", passwordPrompt, getPassword);
+			prompt ("Enter Password . . .", passwordPrompt, getPasswordandUnlock);
 			yield return new WaitUntil (doneUnlocking);
 		}
 		selectedMethod.parseTransactionInput (methodArgs, address);

@@ -145,6 +145,50 @@ public class Ethereum : MonoBehaviour {
 		
 }
 
+public class Contract {
+
+	public string contractName;		
+	public string ABI;
+	public ArrayList parsedContractABI;
+	public string contractAddress;
+	public Hashtable callableMethods;	
+	public Contract(string address, string _ABI){		
+		contractAddress = address;		
+		ABI = _ABI;
+	}
+
+	public void parseContractABI (string unparsedABI) {
+		//create object from json of contract ABI
+		parsedContractABI = JSON.JsonDecode (unparsedABI) as ArrayList;
+	}
+
+	public void extractCallableMethods () {
+		//extracts the callable methods names, and their inputs from parsed ABI
+		//creates method objects for all of them and stores them on a hashtable methods
+		//@to-do throws errors if user enters an incorrect ABI
+		Hashtable methods = new Hashtable ();
+		for (int i = 0; i < parsedContractABI.Count; i++) {
+			Hashtable element = parsedContractABI [i] as Hashtable;
+			//check if element is a function
+			if (!element.ContainsKey ("constant")) {
+				continue;
+			} 
+			//now check what the value of constant
+			//may also need to check the length of inputs
+			if ((element ["constant"] is Boolean) && ((bool)element ["constant"] == false)) {
+				string name = (string)element ["name"];
+				ArrayList inputs = element ["inputs"] as ArrayList;
+				CallableMethod method = new CallableMethod (name, contractAddress, inputs);
+				methods [name] = method;
+			} 
+		}
+		//return a hash table {name: CallableMethod}
+		//could probably replace with a generic 
+		callableMethods = methods;
+	}
+
+}
+
 public class CallableMethod {				
 			
 	public string methodName;	
@@ -244,7 +288,6 @@ public class CallableMethod {
 
 	private string addressParser(string rawArg) {
 		//checks that address is the right length and adds 0s at the beginning
-		int asInt;
 		string parsedArg = "";
 		//strips the preceeding '0x' if it's present
 		if (rawArg [1] == 'x') {
@@ -261,12 +304,12 @@ public class CallableMethod {
 
 	private string intParser(string rawArg) {
 		//checks that the given string is a valid int and formats it correctly if so
-		int asInt;
+		int checkInt;
 		string parsedArg = "";
 		//tryParse will fail on ints larger than int32
-		if (int.TryParse (rawArg, out asInt)) {
+		if (int.TryParse (rawArg, out checkInt)) {
 			//adds the right amount of 0s to the beginning
-			string hexValue = asInt.ToString("X");
+			string hexValue = checkInt.ToString("X");
 			for (int i = 0; i < (64 - hexValue.Length); i++) {
 				parsedArg = parsedArg + "0";
 			}
@@ -298,46 +341,3 @@ public class CallableMethod {
 	}
 }
 
-public class Contract {
-	
-	public string contractName;		
-	public string ABI;
-	public ArrayList parsedContractABI;
-	public string contractAddress;
-	public Hashtable callableMethods;	
-	public Contract(string address, string _ABI){		
-		contractAddress = address;		
-		ABI = _ABI;
-	}
-
-	public void parseContractABI (string unparsedABI) {
-		//create object from json of contract ABI
-		parsedContractABI = JSON.JsonDecode (unparsedABI) as ArrayList;
-	}
-
-	public void extractCallableMethods () {
-		//extracts the callable methods names, and their inputs from parsed ABI
-		//creates method objects for all of them and stores them on a hashtable methods
-		//@to-do throws errors if user enters an incorrect ABI
-		Hashtable methods = new Hashtable ();
-		for (int i = 0; i < parsedContractABI.Count; i++) {
-			Hashtable element = parsedContractABI [i] as Hashtable;
-			//check if element is a function
-			if (!element.ContainsKey ("constant")) {
-				continue;
-			} 
-			//now check what the value of constant
-			//may also need to check the length of inputs
-			if ((element ["constant"] is Boolean) && ((bool)element ["constant"] == false)) {
-				string name = (string)element ["name"];
-				ArrayList inputs = element ["inputs"] as ArrayList;
-				CallableMethod method = new CallableMethod (name, contractAddress, inputs);
-				methods [name] = method;
-			} 
-		}
-		//return a hash table {name: CallableMethod}
-		//could probably replace with a generic 
-		callableMethods = methods;
-	}
-		
-}
