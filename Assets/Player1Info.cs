@@ -4,11 +4,12 @@ using System.Collections.Generic;
 using System;
 using UnityEngine.UI;
 using UnityEngine.Events;
+using System.Text;
 
 public class Player1Info : MonoBehaviour {
 
 	//Ethereum components
-	public string address = "0x74e7680630aAa2cBFf07e91069E426C2A46f065b";
+	public string address;
 	public GameObject eth;
 	public Ethereum ethereum;
 	public bool accountIsUnlocked;
@@ -31,7 +32,6 @@ public class Player1Info : MonoBehaviour {
 	public GameObject methodDropdownParent;
 	public Dropdown methodDropdown;
 	public bool isEnteringInput;
-
 	public Text message;
 	//movement/physics components
 	public float speed;
@@ -52,6 +52,7 @@ public class Player1Info : MonoBehaviour {
 		methodDropdown.captionText.text = "Methods";
 		//No way to begin the game with an input prompt active
 		isEnteringInput = false;
+
 	}
 
 	void Update () { 
@@ -66,7 +67,7 @@ public class Player1Info : MonoBehaviour {
 				if (accountIsUnlocked) {
 					prompt ("Enter Amount . . .", amountToSendPrompt, getValue);
 				} else {
-					prompt ("Enter Password . . .", passwordPrompt, getPasswordThenSend);
+					StartCoroutine (unlockAndSend ());
 				}
 			}
 		}
@@ -92,17 +93,35 @@ public class Player1Info : MonoBehaviour {
 		
 	public void getValue (string value) {
 		//Will need error checking here
+		//responsible for actually sending the transaction - maybe needs name change
 		int _value = int.Parse (value);
 		Debug.Log (_value);
 		//Convert number to hex
 		amountToSend = "0x" + _value.ToString ("x");
-		ethereum.ethSendTransaction (address, addressToReceive, "0x76c0", "0x9184272a000", amountToSend);
+		ethereum.ethSendTransaction (address, addressToReceive, "0x76c0", "0x9184272a000", value:amountToSend);
 		amountToSendPrompt.SetActive (false);
 		//clear amount to send field
 		clearEntryField(amountToSendPrompt);
 	}
+
+	public bool doneUnlocking() {
+		//wrapper for the isAccountUnlocked switch 
+		if (accountIsUnlocked) {
+			return true;
+		}
+		return false;
+	}
+
+	private IEnumerator unlockAndSend() {
+		//prompts for password, and then waits until account is unlocked
+		prompt ("Enter Password . . .", passwordPrompt, getPassword);
+		yield return new WaitUntil(doneUnlocking);
+
+		prompt ("Enter Amount . . .", amountToSendPrompt, getValue);
+		yield break;
+	}
 		
-	public void getPasswordThenSend (string password) {;
+	public void getPassword (string password) {;
 		//Will need to parse this response and check for success
 		ethereum.personalUnlockAccount (address, password, 10);
 		Ethereum.Responded += wasUnlockSuccessful;
@@ -139,7 +158,9 @@ public class Player1Info : MonoBehaviour {
 			message.text = "";
 			setPasswordTimer (10.0f);
 			accountIsUnlocked = true;
-			prompt ("Enter Amount . . .", amountToSendPrompt, getValue);
+			//prompt ("Enter Amount . . .", amountToSendPrompt, getValue);
+		} else {
+			message.text = "";
 		}
 		Debug.Log(ethereum.parsedJsonResponse ["result"]);
 		Ethereum.Responded -= wasUnlockSuccessful;
@@ -226,25 +247,21 @@ public class Player1Info : MonoBehaviour {
 	public void setSelectedContract(int index) {
 		string selectedName = contractDropdown.options [index].text;
 		selectedContract = watchedContracts [selectedName] as Contract;
+		populateDropdown (methodDropdown, selectedContract.callableMethods, setSelectedMethod);
 	}
 
 	public void setSelectedMethod(int index) {
 		string selectedName = methodDropdown.options [index].text;
 		selectedMethod = selectedContract.callableMethods [selectedName] as CallableMethod;
-
 	}
 
 	public void callMethod() {
-		Debug.Log (selectedMethod.inputs.Count);
-//		for (int i = 0; i < selectedMethod.inputs.Count; i++) {
-//			prompt ("Enter arg . . .", contractPrompt, setMethodArg);
-//			//clearEntryField (contractPrompt);
-//		}
-//		selectedMethod.sendTransaction (methodArgs);
+		//attached to call Method button, triggers input collection coroutine
 		StartCoroutine(collectArgs());
 	}
 
 	public bool doneEntering() {
+		//wrapper for the isEnteringInput switch 
 		if (isEnteringInput) {
 			return false;
 		}
@@ -252,21 +269,29 @@ public class Player1Info : MonoBehaviour {
 	}
 
 	private IEnumerator collectArgs() {
-	
+		//loops and collect input, prompting for the type and appending them to a list
+		if (selectedMethod.sha == "") {
+			selectedMethod.getSha ();
+		}
 		for (int i = 0; i < selectedMethod.inputs.Count; i++) {
 			Hashtable arg = selectedMethod.inputs [i] as Hashtable;
 			string argtype = (string)arg ["type"];
 			prompt ("Enter " + argtype, contractPrompt, setMethodArg);
 			yield return new WaitUntil(doneEntering);
 		}
-
-		//string response = www.text;
-		//Return the api response with a callback
-		//resultCallback(response);
+		//Pass gathered args over to the method object for encoding
+		if (!accountIsUnlocked) {
+			prompt ("Enter Password . . .", passwordPrompt, getPassword);
+			yield return new WaitUntil (doneUnlocking);
+		}
+		selectedMethod.parseTransactionInput (methodArgs, address);
+		//Clear list in case we call another method later
+		methodArgs.Clear ();
 		yield break;
 	}
 
 	public void setMethodArg(string arg) {
+		//event listener for collectArgs Coroutine, appends to arg list and closes prompt
 		clearEntryField (contractPrompt);
 		contractPrompt.SetActive (false);
 		methodArgs.Add (arg);

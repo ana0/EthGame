@@ -4310,7 +4310,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e9904447c7173574e8230f034d36903f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  address: 0x74e7680630aAa2cBFf07e91069E426C2A46f065b
+  address: 0xd51bf4607aef293484100Ba72211A7989e66d408
   eth: {fileID: 1286402961}
   ethereum: {fileID: 0}
   accountIsUnlocked: 0
@@ -4326,6 +4326,7 @@ MonoBehaviour:
   contractDropdown: {fileID: 1975280177}
   methodDropdownParent: {fileID: 792312932}
   methodDropdown: {fileID: 792312934}
+  isEnteringInput: 0
   message: {fileID: 1459401221}
   speed: 5
 --- !u!1 &2018596056

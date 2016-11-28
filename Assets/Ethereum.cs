@@ -92,7 +92,7 @@ public class Ethereum : MonoBehaviour {
 		StartCoroutine(Call(assembledRequest, setResponse));
 	}
 		
-	public void ethSendTransaction(string fromAddress, string toAddress, string gas, string gasPrice, string value) {
+	public void ethSendTransaction(string fromAddress, string toAddress, string gas, string gasPrice, string value = "", string contractData = "") {
 		//assembles args into json rpc call, and starts Call Coroutine
 		//string fromAddress represents the account sending the transaction, toAddress is the destination address
 		//gas is the amount of available gas, gasPrice is the price of gas, and value is the amount to be sent
@@ -102,7 +102,12 @@ public class Ethereum : MonoBehaviour {
 		_parameters ["to"] = toAddress;
 		_parameters ["gas"] = gas;
 		_parameters ["gasPrice"] = gasPrice;
-		_parameters ["value"] = value;
+		if (value != "") {
+			_parameters ["value"] = value;
+		}
+		if (contractData != "") {
+			_parameters ["data"] = contractData;
+		}
 		ArrayList parameters = new ArrayList { _parameters };
 		Hashtable data = new Hashtable ();
 		data ["jsonrpc"] = "2.0"; 
@@ -142,14 +147,16 @@ public class Ethereum : MonoBehaviour {
 
 public class CallableMethod {				
 			
-	public string methodName;		
+	public string methodName;	
+	public string address;
 	public ArrayList inputs;	
 	public GameObject eth;
 	public Ethereum ethereum;
 	public string signature;
 	public string sha;
-	public CallableMethod(string name, ArrayList _inputs){		
+	public CallableMethod(string name, string _address, ArrayList _inputs){		
 		methodName = name;		
+		address = _address;
 		inputs = _inputs;
 		eth = GameObject.FindGameObjectWithTag ("Eth");
 		ethereum = eth.GetComponent<Ethereum> ();
@@ -180,17 +187,116 @@ public class CallableMethod {
 		//will need error checking
 		string result = (string)ethereum.parsedJsonResponse ["result"];
 		sha = result.Substring (0, 10);
-		Debug.Log (result);
 		Ethereum.Responded -= setSha3;
 	}
 
-	public void sendTransaction(List<string> enteredArgs) {
+	public void parseTransactionInput(List<string> enteredArgs, string fromAddress) {
 		if (sha == "") {
 			getSha ();
 		}
-		for (int i = 0; i < enteredArgs.Count; i++) {
-			Debug.Log (enteredArgs [i]);
+		//as we go through the args, formatting them properly according to their type
+		//they get added to this giant list
+		List<string> parsedArgs = new List<string> ();
+		for (int i = 0; i < inputs.Count; i++) {
+			//unpack the needed data type from the input arraylist
+			Hashtable arg = inputs [i] as Hashtable;
+			string argtype = (string)arg["type"];
+			//strip whitespace from what the user entered
+			string rawArg = enteredArgs[i].Trim();
+			//call the appropriate parsing method, depending on desired datatype
+			if (argtype.Substring (argtype.Length - 2) == "[]") {
+				//dynamic arg variable length array
+				Debug.Log (argtype.Substring (argtype.Length - 2));
+			} else if (argtype.Substring (argtype.Length - 1) == "]") {
+				//dynamic arg fixed length array
+				Debug.Log (argtype.Substring (argtype.Length - 1));
+			} else if (argtype == "string") {
+				//dynamic arg
+				Debug.Log (argtype);
+			} else if (argtype == "bytes") {
+				//dynamic arg
+				Debug.Log (argtype);
+			} else if (argtype.Substring (0, 3) == "uin") {
+				//max size is currently int32, or else TryParse will fail
+				parsedArgs.Add (intParser (rawArg));
+			} else if (argtype.Substring (0, 3) == "int") {
+				//static length signed ints
+				Debug.Log (argtype);
+			} else if (argtype == "bool") {
+				parsedArgs.Add (boolParser (rawArg));
+			} else if (argtype.Substring (0, 3) == "ufi") {
+				//unsigned fixed point ints
+				Debug.Log (argtype);
+			} else if (argtype.Substring (0, 3) == "fix") {
+				//signed fixed point ints
+				Debug.Log (argtype);
+			} else if (argtype == "address") {
+				parsedArgs.Add(addressParser(rawArg));
+			} else if (argtype == "function") {
+				Debug.Log (argtype);
+			} else {
+				Debug.Log ("Unknown arg type");
+				Debug.Log (argtype);
+			}
 		}
+		//build everything we've parsed into one giant string
+		string assembledData = listBuilder (parsedArgs);
+		//send the transaction
+		ethereum.ethSendTransaction (fromAddress, address, "0x76c0", "0x9184272a000", contractData:assembledData); 
+	}
+
+	private string addressParser(string rawArg) {
+		//checks that address is the right length and adds 0s at the beginning
+		int asInt;
+		string parsedArg = "";
+		//strips the preceeding '0x' if it's present
+		if (rawArg [1] == 'x') {
+			rawArg = rawArg.Substring (2);
+		}
+		//Should be checking for valid address here
+		if (rawArg.Length == 40) {
+			parsedArg = "000000000000000000000000" + rawArg;
+		} else {
+			Debug.Log ("Address was not the right length");
+		}
+		return parsedArg;
+	}
+
+	private string intParser(string rawArg) {
+		//checks that the given string is a valid int and formats it correctly if so
+		int asInt;
+		string parsedArg = "";
+		//tryParse will fail on ints larger than int32
+		if (int.TryParse (rawArg, out asInt)) {
+			//adds the right amount of 0s to the beginning
+			for (int i = 0; i < (64 - rawArg.Length); i++) {
+				parsedArg = parsedArg + "0";
+			}
+			parsedArg = parsedArg + rawArg;
+		} else {
+			Debug.Log ("Couldn't parse int");
+		}
+		return parsedArg;
+	}
+
+	private string boolParser(string rawArg) {
+		//Returns encoded string version of the given boolean
+		string parsedArg = "";
+		if (rawArg == "true") {
+			parsedArg = "0000000000000000000000000000000000000000000000000000000000000001";
+		} else {
+			parsedArg = "0000000000000000000000000000000000000000000000000000000000000000";
+		}
+		return parsedArg;
+	}
+
+	private string listBuilder(List<string> data) {
+		string builtData = "";
+		for (int i = 0; i < data.Count; i++) {
+			builtData = builtData + data [i];
+		}
+		builtData = "0x" + sha + builtData;
+		return builtData;
 	}
 }
 
@@ -214,7 +320,7 @@ public class Contract {
 	public void extractCallableMethods () {
 		//extracts the callable methods names, and their inputs from parsed ABI
 		//creates method objects for all of them and stores them on a hashtable methods
-		//@to-do throws all kinds of errors if user enters an incorrect ABI
+		//@to-do throws errors if user enters an incorrect ABI
 		Hashtable methods = new Hashtable ();
 		for (int i = 0; i < parsedContractABI.Count; i++) {
 			Hashtable element = parsedContractABI [i] as Hashtable;
@@ -227,7 +333,7 @@ public class Contract {
 			if ((element ["constant"] is Boolean) && ((bool)element ["constant"] == false)) {
 				string name = (string)element ["name"];
 				ArrayList inputs = element ["inputs"] as ArrayList;
-				CallableMethod method = new CallableMethod (name, inputs);
+				CallableMethod method = new CallableMethod (name, contractAddress, inputs);
 				methods [name] = method;
 			} 
 		}
