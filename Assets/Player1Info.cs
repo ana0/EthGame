@@ -247,12 +247,16 @@ public class Player1Info : MonoBehaviour {
 	public void setSelectedContract(int index) {
 		string selectedName = contractDropdown.options [index].text;
 		selectedContract = watchedContracts [selectedName] as Contract;
+		//must also refresh selected methods
 		populateDropdown (methodDropdown, selectedContract.callableMethods, setSelectedMethod);
+		contractDropdown.captionText.text = "Contracts";
+		setSelectedMethod (0);
 	}
 
 	public void setSelectedMethod(int index) {
 		string selectedName = methodDropdown.options [index].text;
 		selectedMethod = selectedContract.callableMethods [selectedName] as CallableMethod;
+		methodDropdown.captionText.text = "Methods";
 	}
 
 	public void callMethod() {

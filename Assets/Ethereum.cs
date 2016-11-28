@@ -191,9 +191,6 @@ public class CallableMethod {
 	}
 
 	public void parseTransactionInput(List<string> enteredArgs, string fromAddress) {
-		if (sha == "") {
-			getSha ();
-		}
 		//as we go through the args, formatting them properly according to their type
 		//they get added to this giant list
 		List<string> parsedArgs = new List<string> ();
@@ -269,10 +266,11 @@ public class CallableMethod {
 		//tryParse will fail on ints larger than int32
 		if (int.TryParse (rawArg, out asInt)) {
 			//adds the right amount of 0s to the beginning
-			for (int i = 0; i < (64 - rawArg.Length); i++) {
+			string hexValue = asInt.ToString("X");
+			for (int i = 0; i < (64 - hexValue.Length); i++) {
 				parsedArg = parsedArg + "0";
 			}
-			parsedArg = parsedArg + rawArg;
+			parsedArg = parsedArg + hexValue;
 		} else {
 			Debug.Log ("Couldn't parse int");
 		}
@@ -295,7 +293,7 @@ public class CallableMethod {
 		for (int i = 0; i < data.Count; i++) {
 			builtData = builtData + data [i];
 		}
-		builtData = "0x" + sha + builtData;
+		builtData = sha + builtData;
 		return builtData;
 	}
 }
